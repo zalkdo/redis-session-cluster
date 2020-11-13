@@ -1,0 +1,9 @@
+spring:
+  redis:
+    host: 172.29.211.10
+    port: 6379
+    password: ''
+  session:
+    store-type: redis
+    redis:
+      flush-mode: on_save
