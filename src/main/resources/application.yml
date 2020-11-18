@@ -1,9 +1,27 @@
+server:
+  port: 8080
+
+logging:
+  level:
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+
 spring:
   redis:
-    host: 172.29.211.10
+    host: 192.168.112.121
     port: 6379
     password: ''
   session:
     store-type: redis
     redis:
       flush-mode: on_save
+  thymeleaf:
+    cache: false
+  h2:
+    console:
+      enabled: true
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb
+    username: sa
+    password:

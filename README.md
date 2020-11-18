@@ -14,7 +14,14 @@
     # session key 확인
     xxx.xxx.x.x:6379> hgetall spring:session:sessions:<<session id>>
 ## SpringSession
-### SpringBoot initializr
+공식site : https://docs.spring.io/spring-security/site/docs/5.4.1/reference/html5/#session-mgmt
+
+SpringSession의 기본 주요기능들(공식Site참조)
+>1. Detecting Timeouts
+>2. Concurrent Session Control
+>3. Session Fixation Attack Protection
+>4. SessionAutehenticationsStrategy
+### SpringBoot-Redis initializr
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.session:spring-session-data-redis'
@@ -30,21 +37,9 @@
          }
          ...
 > **Tip**: Redis CLI 실행 및 session 정보확인 참조. 세션만료키는 30분+5분으로 설졍됨. 이유는 세션삭제되는 찰나에 접근하여 사용하는 경우를 대비한다고 나와있음.
-## SpringSecurty
-SpringSecurity의 Filter
-![](srpingsecurity1.png)
- - SecurityContextPersistenceFilter : SecurityContextRepository에서 SecurityContext를 로드하고 저장하는 일을 담당함
- - LogoutFilter : 로그아웃 URL로 지정된 가상URL에 대한 요청을 감시하고 매칭되는 요청이 있으면 사용자를 로그아웃시킴 
- - UsernamePasswordAuthenticationFilter : 사용자명과 비밀번호로 이뤄진 폼기반 인증에 사용하는 가상 URL요청을 감시하고 요청이 있으면 사용자의 인증을 진행함 
- - DefaultLoginPageGeneratingFilter : 폼기반 또는 OpenID 기반 인증에 사용하는 가상URL에 대한 요청을 감시하고 로그인 폼 기능을 수행하는데 필요한 HTML을 생성함 
- - BasicAuthenticationFilter : HTTP 기본 인증 헤더를 감시하고 이를 처리함 
- - RequestCacheAwareFilter : 로그인 성공 이후 인증 요청에 의해 가로채어진 사용자의 원래 요청을 재구성하는데 사용됨 
- - SecurityContextHolderAwareRequestFilter : HttpServletRequest를 HttpServletRequestWrapper를 상속하는 하위 클래스(SecurityContextHolderAwareRequestWrapper)로 감싸서 필터 체인상 하단에 위치한 요청 프로세서에 추가 컨텍스트를 제공함 AnonymousAuthenticationFilter 이 필터가 호출되는 시점까지 사용자가 아직 인증을 받지 못했다면 요청 관련 인증 토큰에서 사용자가 익명 사용자로 나타나게 됨 
- - SessionManagementFilter : 인증된 주체를 바탕으로 세션 트래킹을 처리해 단일 주체와 관련한 모든 세션들이 트래킹되도록 도움 
- - ExceptionTranslationFilter : 이 필터는 보호된 요청을 처리하는 동안 발생할 수 있는 기대한 예외의 기본 라우팅과 위임을 처리함 
- - FilterSecurityInterceptor : 이 필터는 권한부여와 관련한 결정을 AccessDecisionManager에게 위임해 권한부여 결정 및 접근 제어 결정을 쉽게 만들어 줌
 
-출처: https://devuna.tistory.com/55 [튜나 개발일기📚]
+## SpringSecurty
+공식Site : https://docs.spring.io/spring-security/site/docs/5.4.1/reference/html5/#servlet-authentication-unpwd
 ### SpringSecurityConfiguation
 @EnableWebSecurity 애너테이션은 웹 보안을 활성화 하며, WebSecurityConfigurer를 구현하거나 WebSecurityConfigurerAdapter를 확장해서 설정
 아래 세가지 configure() 메소드를 오버라이딩하고 동작을 설정하는 것으로 웹 보안을 설정.    
@@ -80,6 +75,7 @@ SpringSecurity의 Filter
             }
 ```
 > **Tip**: auth.inMemoryAuthentication()는 테스트 용도로만 사용됨.
+> Spring Security에서 사용가능한 메소드는 [혀노블로그](https://m.blog.naver.com/kimnx9006/220638156019) 참조
 #### AuthenticationManagerBuilder
 인증을 위한 여러가지 방법은 [혀노블로그](https://m.blog.naver.com/kimnx9006/220634017538)를 참조.
 DataSource로 인증 예시
@@ -104,3 +100,84 @@ DataSource로 인증 예시
             }
         ...
 ```
+### Form Login
+SecurityFilterChain Diagram.
+![](https://docs.spring.io/spring-security/site/docs/5.4.1/reference/html5/images/servlet/authentication/unpwd/loginurlauthenticationentrypoint.png)
+>1. 권한없는 /privat에 대해 인증되지 않은 요청
+>2. FilterEscurityInterceptor는 AccessDeniedException을 발생시켜 미인증 요청에 대해 거부를 표시
+>3. 사용자가 미인증이기 때문에, ExeceptionTranslationFilter는 인증을 시작하고 AuthenticationEntryPoint에 설정된 로그인페이지로 리다이렉션.
+>4. 브라우져는 리다이렉션된 로그인 페이지를 요청
+>5. 애플리케이션 내에서 로그인 페이지를 렌더링
+
+UsernamePasswordAuthenticationFilter는 유져이름과 암로를 인증합니다.
+![](https://docs.spring.io/spring-security/site/docs/5.4.1/reference/html5/images/servlet/authentication/unpwd/usernamepasswordauthenticationfilter.png)
+>1. HttpServletRequest에서 유저이름과 암호를 추출하여 인증하여 UsernamePasswordAuthenticationToken을 생성
+>2. Token이 AuthenticationManager에 전달되어 인증.(사용자 저장방식에 따라 다름)
+>3. 인증 실패
+>>* SecurityContextHolder clear
+>>* RememberMeServices.loginFail 호출
+>>* AuthenticationFailureHandler 호출
+>4. 인증 성공
+>>* SessioniAuthenticationStrategy에 새로운 로그인 통보
+>>* SecutiryContextHolder에 인증 설정   
+>>* RememberMeServices.loginSuccess 호출
+>>* ApplicationEventPublisher가 InteractiveAuthenticationSuccessEvent 게시
+>>* AuthenticationSuccessHandler 호출됨. 일반적으로 로그인페이지로 리디렉션 시에 ExeceptionTranslationFilter에 의해 저장된 요청으로 리디렉션되는 SimpleUrlAuthenticationSuccessHandler임
+
+###JDBC Authentication
+Embedded DB H2 사용, users/authorities table이 자동생성.
+```
+    @Bean
+    DataSource dataSource() {
+        return new EmbeddedDatabaseBuilder()
+            .setType(H2)
+            .addScript("classpath:org/springframework/security/core/userdetails/jdbc/users.ddl")
+            .build();
+    }
+```
+application.yml과 build.gradle에 추가
+```
+    spring:
+      h2:
+        console:
+          enabled: true
+      datasource:
+        driver-class-name: org.h2.Driver
+        url: jdbc:h2:mem:testdb
+        username: sa
+        password:
+```
+```
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'com.h2database:h2'
+```
+> **Tip**: H2 console 접근 시 고려사항 - [cncf/frameOptions설정](https://springframework.guru/using-the-h2-database-console-in-spring-boot-with-spring-security/)
+
+JdbcUserDetailsManager Example
+```
+@Bean
+UserDetailsManager users(DataSource dataSource) {
+    UserDetails user = User.builder()
+        .username("user")
+        .password("{bcrypt}$2a$10$GRLdNijSQMUvl/au9ofL.eDwmoohzzS7.rmNSJZ.0FxO/BTk76klW")
+        .roles("USER")
+        .build();
+    UserDetails admin = User.builder()
+        .username("admin")
+        .password("{bcrypt}$2a$10$GRLdNijSQMUvl/au9ofL.eDwmoohzzS7.rmNSJZ.0FxO/BTk76klW")
+        .roles("USER", "ADMIN")
+        .build();
+    JdbcUserDetailsManager users = new JdbcUserDetailsManager(dataSource);
+    users.createUser(user);
+    users.createUser(admin);
+}
+```
+### DaoAuthenticationProvider
+![](https://docs.spring.io/spring-security/site/docs/5.4.1/reference/html5/images/servlet/authentication/unpwd/daoauthenticationprovider.png)
+>1. 유저이름과 암화 인증 필터는 UsernamePasswordAuthenticationToken을 AuthenticationManager로 전달
+>2. ProviderManager는 DaoAuthenticationProvider유형의 AuthenticationProvider를 사용하도록 구성
+>3. DaoAuthenticationProvider는 UserDetailServe에서 UserDetails를 찾음
+>4. DaoAuthenticationProvider는 PasswordEncoder를 사용해서 UserDetails의 password를 검증
+>5. 인증을 성공하면 Token은 UserDetail를 가지고, 궁극적으로 Token은 인증 필터에 의해 SecurityContextHolder에 설정
+
+###Remember-Me Authentication
